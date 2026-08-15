@@ -1,0 +1,37 @@
+# build output
+dist/
+dist.building/
+*.c4z
+
+# downloaded archives and binaries never belong in this repo
+*.whl
+*.zip
+*.tar.gz
+*.tgz
+*.so
+
+# python
+__pycache__/
+*.pyc
+
+# local scripts
+publish.local.sh
+
+# local dev secrets, never committed
+*token*.txt
+*.pem
+*.key
+.env
+
+# editors and OS
+*~
+*.bak
+*.orig
+*.swp
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# internal handoff notes, not part of the published project
+HANDOFF*.md

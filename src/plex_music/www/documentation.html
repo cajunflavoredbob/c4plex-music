@@ -1,0 +1,128 @@
+<h1>Plex Music (c4plex)</h1>
+
+<p>A native Control4 streaming music source for a Plex Media Server. Browse
+and search your Plex music library from Navigator under Listen, pick a track,
+and the Control4 Digital Audio engine streams it straight from the server, the
+same model as the built-in streaming services. No extra player hardware: the
+Control4 controller is the renderer.</p>
+
+<h2>Setup</h2>
+<ol>
+	<li>Add this driver to the project. The Digital Audio connections bind
+	automatically.</li>
+	<li>Link the Plex account: run the <b>Link Plex Account</b> action (or
+	open the driver's <b>Settings</b> tab in Navigator), then visit
+	<b>plex.tv/link</b> and enter the 4-character code. After linking, the
+	driver finds your Plex server automatically and fills in the address
+	and token properties.</li>
+	<li>Manual alternative: set <b>Plex Server Address</b> / <b>Port</b>
+	and paste an X-Plex-Token into <b>Plex Token</b>. Either path works;
+	Composer properties and the Navigator Account tab always reflect the
+	same state.</li>
+	<li>Check <b>Server Status</b> reads Connected, and pick the
+	<b>Music Library</b> if the server has more than one.</li>
+	<li>The <b>Test Connection</b> action re-runs the connection check, and
+	<b>Refresh Libraries</b> re-reads the library list and clears the browse
+	cache (use it if the status ever shows "Library list failed" or after
+	large library changes).</li>
+</ol>
+
+<h2>Playback modes</h2>
+<p>The <b>Playback</b> property picks how audio reaches the controller:</p>
+<ul>
+	<li><b>Transcode (MP3 320/192/128 kbps)</b>: the Plex server transcodes
+	every track to a plain MP3 stream. The most compatible choice.</li>
+	<li><b>Direct Play When Possible</b> (default): attempts to stream MP3,
+	AAC, and FLAC files as original bytes for the fastest start; other
+	formats fall back to the MP3 transcode.</li>
+</ul>
+
+<h2>Features</h2>
+<ul>
+	<li><b>Artists, Albums, Playlists, and Extras</b> tabs with drill-down
+	browsing, pagination, and A-Z jump scrolling on Artists and Albums.</li>
+	<li><b>Extras tab</b>: a home screen with Radio Stations (Plex Pass) at
+	the top, then a Library section of drill-in rows - Recently Played,
+	Recently Added, Most Played, Decades, Genres, and Moods (Moods is a
+	curated shortlist limited to those your library actually has). Tapping a
+	radio station plays it continuously, refilling as it nears the end.
+	Accounts without Plex Pass see everything except the Stations section.</li>
+	<li><b>Search</b>: the magnifier in the top bar searches the whole
+	library, with Tracks, Albums, Artists, and Playlists result tabs and
+	recent-search history.</li>
+	<li><b>Play All / Shuffle All</b> at the top of every opened album,
+	playlist, and artist Top Tracks list, plus Shuffle Play on the long-press
+	menu.</li>
+	<li><b>Artist pages</b>: opening an artist leads with Play All, Shuffle
+	All, and Play Mix (an endless artist radio, Plex Pass), then Top Tracks,
+	Discography, and Similar Artists drill-in rows (Top Tracks and Similar
+	appear when the Plex music agent provides them). Similar Artists lists
+	only artists in your library, so every suggestion is playable.</li>
+	<li><b>Account linking from Navigator</b>: the Settings tab (or the
+	Composer action) fetches a plex.tv/link code; no manual token hunting.</li>
+	<li><b>Seek</b>: drag the Now Playing progress bar to jump within a
+	track (the stream restarts at the chosen position; scrubbing needs a
+	current Navigator OS).</li>
+	<li><b>Fast repeat browsing</b>: recently viewed pages answer from a
+	60-second cache.</li>
+	<li><b>Queue playback</b>: tapping a track plays it in the context of its
+	album or playlist; gapless advance via the engine's next-URL prefetch.</li>
+	<li><b>Item action menu</b> (long-press): Play Now, Play Next, and Add To
+	Queue on any track, album, artist, or playlist, plus Shuffle Play on
+	containers and Play Mix on artists (Plex Pass). Play Next drops the
+	selection in to play right after the current track, or starts it
+	immediately when nothing is playing.</li>
+	<li><b>Add To Favorites</b>: pin any track, album, artist, or playlist to
+	a room (or the Favorites menu) from the item action menu; tapping the pin
+	later plays it straight into that room.</li>
+	<li><b>Now Playing</b> with artwork, progress, transports, shuffle, and
+	repeat.</li>
+	<li><b>Plex integration</b>: play progress is reported back to the server,
+	so played state and Plex dashboards stay accurate.</li>
+	<li><b>Update check</b> (optional, off by default): when the <b>Check for
+	Updates</b> property is On, the driver checks GitHub once a day for a newer
+	release and shows the result next to <b>Driver Version</b> in Composer
+	("Up to Date" or "Update available: X"). This is a single HTTPS request to
+	api.github.com; nothing about your system is sent, and nothing is downloaded
+	or installed.</li>
+</ul>
+
+<h2>Known limitations</h2>
+<ul>
+	<li>Seeking restarts the stream at the chosen position; a brief gap is
+	normal. The first track change right after resuming from a pause can also
+	have a brief gap.</li>
+	<li>The Settings tab's screens use a Navigator settings surface that is
+	not fully documented publicly; if a Navigator model does not render
+	them, use the Link Plex Account action in Composer instead.</li>
+	<li>Account linking talks to plex.tv over HTTPS; everything else is
+	LAN-only. Linking uses the account's own token, so it works for servers
+	the account owns (for a shared server, paste that server's token
+	manually).</li>
+	<li>Playlists are read-only; editing happens in Plex. Playlist search
+	scans up to the first 2000 playlists.</li>
+	<li>Playing a very large container queues its first 500 tracks, and
+	tapping a track in a recently viewed paged list queues the page it came
+	from (an older page may play the track on its own).</li>
+	<li>Search (top-bar magnifier) spans the whole library; there is no
+	per-list filter box inside opened containers.</li>
+	<li>The A-Z index refreshes every 10 minutes; right after large library
+	changes the scrubber can land a few rows off (Refresh Libraries resets
+	it).</li>
+	<li>A driver update can change the driver's screens and connections; if
+	new tabs or connections do not appear after Update Driver, remove and
+	re-add the driver.</li>
+	<li>The token is stored on the controller (the Composer property is
+	masked, but an administrator can still recover it), and all traffic to
+	the server is plain HTTP on the local network. Use a managed/restricted
+	account's token if that matters in your deployment.</li>
+</ul>
+
+<h2>Changelog</h2>
+<ul>
+	<li>{{SEMVER}} - Initial release: Artists / Albums / Playlists / Extras
+	browsing with whole-library search; artist pages with Play All, Shuffle All,
+	Play Mix, Top Tracks, Discography, and Similar Artists; item menus (Play Now
+	/ Play Next / Add To Queue / Shuffle Play / Play Mix / Add To Favorites);
+	Now Playing with gapless advance; plex.tv/link pairing and auto-discovery.</li>
+</ul>

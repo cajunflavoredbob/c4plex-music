@@ -1,0 +1,889 @@
+<devicedata>
+	<copyright>Copyright 2026 cajunflavoredbob. Licensed under the MIT License.</copyright>
+	<creator>cajunflavoredbob</creator>
+	<manufacturer>c4plex</manufacturer>
+	<name>Plex Music (c4plex)</name>
+	<model>Plex Music</model>
+	<created>08/10/2026 06:00 PM</created>
+	<modified>{{MODIFIED}}</modified>
+	<version>{{VERSION_INT}}</version>
+	<semver>{{SEMVER}}</semver>
+	<!-- SELECT_AUDIO_URL needs 2.10.0+ and item default actions need 3.0.0+;
+	     testing targets OS 3.4.3 but the manifest does not gate that hard -->
+	<minimum_os_version>3.0.0</minimum_os_version>
+	<small image_source="c4z">icons/device_sm.png</small>
+	<large image_source="c4z">icons/device_lg.png</large>
+	<control>lua_gen</control>
+	<driver>DriverWorks</driver>
+	<!-- deliberately NOT a combo driver: combo suppresses the proxy device,
+	     and the media_service proxy device is the object rooms enumerate as
+	     a Listen source (bench-confirmed: with combo set, the service never
+	     appears under Listen) -->
+	<composer_categories>
+		<category>Audio</category>
+	</composer_categories>
+	<config>
+		<script file="driver.lua" jit="1"/>
+		<documentation file="www/documentation.html"/>
+		<properties>
+			<property>
+				<name>Driver Version</name>
+				<type>STRING</type>
+				<default></default>
+				<readonly>true</readonly>
+			</property>
+			<property>
+				<name>Check for Updates</name>
+				<type>LIST</type>
+				<items>
+					<item>Off</item>
+					<item>On</item>
+				</items>
+				<default>Off</default>
+				<readonly>false</readonly>
+				<tooltip>When On, checks the GitHub releases once a day and shows the result next to Driver Version. This is a single HTTPS request to api.github.com; nothing about your system is sent, and nothing is downloaded or installed.</tooltip>
+			</property>
+			<property>
+				<name>Server Status</name>
+				<type>STRING</type>
+				<default>Not Configured</default>
+				<readonly>true</readonly>
+			</property>
+			<property>
+				<name>Server</name>
+				<type>STRING</type>
+				<default></default>
+				<readonly>true</readonly>
+			</property>
+			<property>
+				<name>Plex Server Address</name>
+				<type>STRING</type>
+				<default></default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Plex Server Port</name>
+				<type>RANGED_INTEGER</type>
+				<minimum>1</minimum>
+				<maximum>65535</maximum>
+				<default>32400</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Plex Token</name>
+				<type>STRING</type>
+				<default></default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Music Library</name>
+				<type>DYNAMIC_LIST</type>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Account Link</name>
+				<type>STRING</type>
+				<default>Not linked</default>
+				<readonly>true</readonly>
+			</property>
+			<property>
+				<name>Playback</name>
+				<type>LIST</type>
+				<items>
+					<item>Transcode (MP3 320 kbps)</item>
+					<item>Transcode (MP3 192 kbps)</item>
+					<item>Transcode (MP3 128 kbps)</item>
+					<item>Direct Play When Possible</item>
+				</items>
+				<default>Direct Play When Possible</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Auto Rename Driver</name>
+				<type>LIST</type>
+				<items>
+					<item>Off</item>
+					<item>On</item>
+				</items>
+				<default>Off</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Debug</name>
+				<type>LIST</type>
+				<items>
+					<item>Off</item>
+					<item>On</item>
+				</items>
+				<default>Off</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Log Mode</name>
+				<type>LIST</type>
+				<items>
+					<item>Off</item>
+					<item>Print</item>
+					<item>Log</item>
+					<item>Print and Log</item>
+				</items>
+				<default>Print and Log</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Log Level</name>
+				<type>LIST</type>
+				<items>
+					<item>0 - Alert</item>
+					<item>1 - Error</item>
+					<item>2 - Warning</item>
+					<item>3 - Info</item>
+					<item>4 - Trace</item>
+					<item>5 - Debug</item>
+				</items>
+				<default>5 - Debug</default>
+				<readonly>false</readonly>
+			</property>
+			<property>
+				<name>Log Auto Off Minutes</name>
+				<type>RANGED_INTEGER</type>
+				<minimum>1</minimum>
+				<maximum>1440</maximum>
+				<default>1440</default>
+				<readonly>false</readonly>
+			</property>
+		</properties>
+		<actions>
+			<action><name>Test Connection</name><command>TestConnection</command></action>
+			<action><name>Refresh Libraries</name><command>RefreshLibraries</command></action>
+			<action><name>Link Plex Account</name><command>LinkPlexAccount</command></action>
+			<action><name>Rediscover Server</name><command>RediscoverServer</command></action>
+		</actions>
+	</config>
+	<capabilities>
+		<!-- native source: Control4's Digital Audio engine streams the URL -->
+		<digital_audio_support>True</digital_audio_support>
+		<hide_in_media>True</hide_in_media>
+		<!-- defer room activation until media actually plays: tapping the source
+		     should browse, not route the room. A track's SELECT_AUDIO_URL is what
+		     routes the room. Mirrors the deferred-activation media services. -->
+		<can_select>False</can_select>
+		<ui_selects_device>False</ui_selects_device>
+		<dont_auto_select_path_on_media>True</dont_auto_select_path_on_media>
+		<UI xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" proxybindingid="5001">
+			<DeviceIcon>device</DeviceIcon>
+			<BrandingIcon>device</BrandingIcon>
+			<Icons>
+				<IconGroup id="device">
+					<Icon width="25" height="25">controller://driver/c4plex_plex_music/icons/dev_25.png</Icon>
+					<Icon width="30" height="30">controller://driver/c4plex_plex_music/icons/dev_30.png</Icon>
+					<Icon width="40" height="40">controller://driver/c4plex_plex_music/icons/dev_40.png</Icon>
+					<Icon width="50" height="50">controller://driver/c4plex_plex_music/icons/dev_50.png</Icon>
+					<Icon width="56" height="56">controller://driver/c4plex_plex_music/icons/dev_56.png</Icon>
+					<Icon width="60" height="60">controller://driver/c4plex_plex_music/icons/dev_60.png</Icon>
+					<Icon width="70" height="70">controller://driver/c4plex_plex_music/icons/dev_70.png</Icon>
+					<Icon width="80" height="80">controller://driver/c4plex_plex_music/icons/dev_80.png</Icon>
+					<Icon width="90" height="90">controller://driver/c4plex_plex_music/icons/dev_90.png</Icon>
+					<Icon width="100" height="100">controller://driver/c4plex_plex_music/icons/dev_100.png</Icon>
+					<Icon width="150" height="150">controller://driver/c4plex_plex_music/icons/dev_150.png</Icon>
+					<Icon width="300" height="300">controller://driver/c4plex_plex_music/icons/dev_300.png</Icon>
+					<Icon width="512" height="512">controller://driver/c4plex_plex_music/icons/dev_512.png</Icon>
+				</IconGroup>
+				<IconGroup id="np_shuffle">
+					<Icon width="70" height="70">controller://driver/c4plex_plex_music/icons/np_shuffle_70.png</Icon>
+					<Icon width="90" height="90">controller://driver/c4plex_plex_music/icons/np_shuffle_90.png</Icon>
+					<Icon width="140" height="140">controller://driver/c4plex_plex_music/icons/np_shuffle_140.png</Icon>
+				</IconGroup>
+				<IconGroup id="np_shuffle_a">
+					<Icon width="70" height="70">controller://driver/c4plex_plex_music/icons/np_shuffle_a_70.png</Icon>
+					<Icon width="90" height="90">controller://driver/c4plex_plex_music/icons/np_shuffle_a_90.png</Icon>
+					<Icon width="140" height="140">controller://driver/c4plex_plex_music/icons/np_shuffle_a_140.png</Icon>
+				</IconGroup>
+				<IconGroup id="np_repeat">
+					<Icon width="70" height="70">controller://driver/c4plex_plex_music/icons/np_repeat_70.png</Icon>
+					<Icon width="90" height="90">controller://driver/c4plex_plex_music/icons/np_repeat_90.png</Icon>
+					<Icon width="140" height="140">controller://driver/c4plex_plex_music/icons/np_repeat_140.png</Icon>
+				</IconGroup>
+				<IconGroup id="np_repeat_a">
+					<Icon width="70" height="70">controller://driver/c4plex_plex_music/icons/np_repeat_a_70.png</Icon>
+					<Icon width="90" height="90">controller://driver/c4plex_plex_music/icons/np_repeat_a_90.png</Icon>
+					<Icon width="140" height="140">controller://driver/c4plex_plex_music/icons/np_repeat_a_140.png</Icon>
+				</IconGroup>
+			</Icons>
+			<!-- Native search: this element draws the magnifier in the top
+			     bar. Each filter is a result sub-tab pointing at one list
+			     screen that receives the query (SEARCH) and the tab's filter
+			     id (SEARCH_FILTER); History supplies recent-search suggestions
+			     when the box is empty. -->
+			<Search>
+				<Filters>
+					<SearchFilter>
+						<Id>track</Id>
+						<Name>Tracks</Name>
+						<ScreenId>searchlist</ScreenId>
+					</SearchFilter>
+					<SearchFilter>
+						<Id>album</Id>
+						<Name>Albums</Name>
+						<ScreenId>searchlist</ScreenId>
+					</SearchFilter>
+					<SearchFilter>
+						<Id>artist</Id>
+						<Name>Artists</Name>
+						<ScreenId>searchlist</ScreenId>
+					</SearchFilter>
+					<SearchFilter>
+						<Id>playlist</Id>
+						<Name>Playlists</Name>
+						<ScreenId>searchlist</ScreenId>
+					</SearchFilter>
+				</Filters>
+				<History>
+					<DataCommand>
+						<Name>GetSearchHistory</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param>
+								<Name>filter</Name>
+								<Type>SEARCH_FILTER</Type>
+							</Param>
+						</Params>
+					</DataCommand>
+					<TextProperty>name</TextProperty>
+				</History>
+			</Search>
+			<Tabs>
+				<Tab>
+					<Id>artists</Id>
+					<Name>Artists</Name>
+					<IconId>device</IconId>
+					<ScreenId>artists</ScreenId>
+				</Tab>
+				<Tab>
+					<Id>albums</Id>
+					<Name>Albums</Name>
+					<IconId>device</IconId>
+					<ScreenId>albums</ScreenId>
+				</Tab>
+				<Tab>
+					<Id>playlists</Id>
+					<Name>Playlists</Name>
+					<IconId>device</IconId>
+					<ScreenId>playlists</ScreenId>
+				</Tab>
+				<Tab>
+					<Id>extras</Id>
+					<Name>Extras</Name>
+					<IconId>device</IconId>
+					<ScreenId>extras</ScreenId>
+				</Tab>
+				<Tab>
+					<Id>settings</Id>
+					<Name>Settings</Name>
+					<IconId>device</IconId>
+					<ScreenCommand>
+						<Name>GetSettingsScreen</Name>
+						<Type>PROTOCOL</Type>
+					</ScreenCommand>
+				</Tab>
+			</Tabs>
+			<Screens>
+				<!-- Three structurally identical list screens; the driver keys the
+				     root listing off screenId and drills via the tapped item's id.
+				     OFFSET pagination: Navigator re-issues Browse with start/count. -->
+				<Screen xsi:type="ListScreenType">
+					<Id>artists</Id>
+					<DataCommand>
+						<Name>Browse</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param><Name>screenId</Name><Type>SYSTEM</Type><Value>screenId</Value></Param>
+							<Param><Name>tabId</Name><Type>SYSTEM</Type><Value>tabId</Value></Param>
+							<Param><Name>screenDepth</Name><Type>SYSTEM</Type><Value>screenDepth</Value></Param>
+							<Param><Name>id</Name><Type>FIRST_SELECTED</Type><Value>id</Value></Param>
+							<Param><Name>itemType</Name><Type>FIRST_SELECTED</Type><Value>itemType</Value></Param>
+							<Param><Name>search</Name><Type>SEARCH</Type></Param>
+							<Param><Name>search_filter</Name><Type>SEARCH_FILTER</Type></Param>
+							<Param><Name>start</Name><Type>DATA_OFFSET</Type></Param>
+							<Param><Name>count</Name><Type>DATA_COUNT</Type></Param>
+						</Params>
+					</DataCommand>
+					<RequiresRefresh>true</RequiresRefresh>
+					<PaginationStyle>OFFSET</PaginationStyle>
+					<List>
+						<ItemDefaultActionProperty>default_action</ItemDefaultActionProperty>
+						<ItemActionIdsProperty>actions_list</ItemActionIdsProperty>
+						<TitleProperty>title</TitleProperty>
+						<SubTitleProperty>subtitle</SubTitleProperty>
+						<ImageProperty>image_list</ImageProperty>
+						<LengthProperty>duration</LengthProperty>
+						<IsLink>
+							<Property>isLink</Property>
+							<ValidValues><Value>true</Value></ValidValues>
+						</IsLink>
+						<IsHeader>
+							<Property>isHeader</Property>
+							<ValidValues><Value>true</Value></ValidValues>
+						</IsHeader>
+					</List>
+				</Screen>
+				<Screen xsi:type="ListScreenType">
+					<Id>albums</Id>
+					<DataCommand>
+						<Name>Browse</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param><Name>screenId</Name><Type>SYSTEM</Type><Value>screenId</Value></Param>
+							<Param><Name>tabId</Name><Type>SYSTEM</Type><Value>tabId</Value></Param>
+							<Param><Name>screenDepth</Name><Type>SYSTEM</Type><Value>screenDepth</Value></Param>
+							<Param><Name>id</Name><Type>FIRST_SELECTED</Type><Value>id</Value></Param>
+							<Param><Name>itemType</Name><Type>FIRST_SELECTED</Type><Value>itemType</Value></Param>
+							<Param><Name>search</Name><Type>SEARCH</Type></Param>
+							<Param><Name>search_filter</Name><Type>SEARCH_FILTER</Type></Param>
+							<Param><Name>start</Name><Type>DATA_OFFSET</Type></Param>
+							<Param><Name>count</Name><Type>DATA_COUNT</Type></Param>
+						</Params>
+					</DataCommand>
+					<RequiresRefresh>true</RequiresRefresh>
+					<PaginationStyle>OFFSET</PaginationStyle>
+					<List>
+						<ItemDefaultActionProperty>default_action</ItemDefaultActionProperty>
+						<ItemActionIdsProperty>actions_list</ItemActionIdsProperty>
+						<TitleProperty>title</TitleProperty>
+						<SubTitleProperty>subtitle</SubTitleProperty>
+						<ImageProperty>image_list</ImageProperty>
+						<LengthProperty>duration</LengthProperty>
+						<IsLink>
+							<Property>isLink</Property>
+							<ValidValues><Value>true</Value></ValidValues>
+						</IsLink>
+						<IsHeader>
+							<Property>isHeader</Property>
+							<ValidValues><Value>true</Value></ValidValues>
+						</IsHeader>
+					</List>
+				</Screen>
+				<Screen xsi:type="ListScreenType">
+					<Id>playlists</Id>
+					<DataCommand>
+						<Name>Browse</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param><Name>screenId</Name><Type>SYSTEM</Type><Value>screenId</Value></Param>
+							<Param><Name>tabId</Name><Type>SYSTEM</Type><Value>tabId</Value></Param>
+							<Param><Name>screenDepth</Name><Type>SYSTEM</Type><Value>screenDepth</Value></Param>
+							<Param><Name>id</Name><Type>FIRST_SELECTED</Type><Value>id</Value></Param>
+							<Param><Name>itemType</Name><Type>FIRST_SELECTED</Type><Value>itemType</Value></Param>
+							<Param><Name>search</Name><Type>SEARCH</Type></Param>
+							<Param><Name>search_filter</Name><Type>SEARCH_FILTER</Type></Param>
+							<Param><Name>start</Name><Type>DATA_OFFSET</Type></Param>
+							<Param><Name>count</Name><Type>DATA_COUNT</Type></Param>
+						</Params>
+					</DataCommand>
+					<RequiresRefresh>true</RequiresRefresh>
+					<PaginationStyle>OFFSET</PaginationStyle>
+					<List>
+						<ItemDefaultActionProperty>default_action</ItemDefaultActionProperty>
+						<ItemActionIdsProperty>actions_list</ItemActionIdsProperty>
+						<TitleProperty>title</TitleProperty>
+						<SubTitleProperty>subtitle</SubTitleProperty>
+						<ImageProperty>image_list</ImageProperty>
+						<LengthProperty>duration</LengthProperty>
+						<IsLink>
+							<Property>isLink</Property>
+							<ValidValues><Value>true</Value></ValidValues>
+						</IsLink>
+						<IsHeader>
+							<Property>isHeader</Property>
+							<ValidValues><Value>true</Value></ValidValues>
+						</IsHeader>
+					</List>
+				</Screen>
+				<Screen xsi:type="ListScreenType">
+					<Id>extras</Id>
+					<DataCommand>
+						<Name>Browse</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param><Name>screenId</Name><Type>SYSTEM</Type><Value>screenId</Value></Param>
+							<Param><Name>tabId</Name><Type>SYSTEM</Type><Value>tabId</Value></Param>
+							<Param><Name>screenDepth</Name><Type>SYSTEM</Type><Value>screenDepth</Value></Param>
+							<Param><Name>id</Name><Type>FIRST_SELECTED</Type><Value>id</Value></Param>
+							<Param><Name>itemType</Name><Type>FIRST_SELECTED</Type><Value>itemType</Value></Param>
+							<Param><Name>search</Name><Type>SEARCH</Type></Param>
+							<Param><Name>search_filter</Name><Type>SEARCH_FILTER</Type></Param>
+							<Param><Name>start</Name><Type>DATA_OFFSET</Type></Param>
+							<Param><Name>count</Name><Type>DATA_COUNT</Type></Param>
+						</Params>
+					</DataCommand>
+					<RequiresRefresh>true</RequiresRefresh>
+					<PaginationStyle>OFFSET</PaginationStyle>
+					<List>
+						<ItemDefaultActionProperty>default_action</ItemDefaultActionProperty>
+						<ItemActionIdsProperty>actions_list</ItemActionIdsProperty>
+						<TitleProperty>title</TitleProperty>
+						<SubTitleProperty>subtitle</SubTitleProperty>
+						<ImageProperty>image_list</ImageProperty>
+						<LengthProperty>duration</LengthProperty>
+						<IsLink>
+							<Property>isLink</Property>
+							<ValidValues><Value>true</Value></ValidValues>
+						</IsLink>
+						<IsHeader>
+							<Property>isHeader</Property>
+							<ValidValues><Value>true</Value></ValidValues>
+						</IsHeader>
+					</List>
+				</Screen>
+				<!-- Account link/unlink settings screens. Structure per the
+				     documented settings-screen tree: Item elements are DIRECT
+				     children of Screen, and the display element is Text. -->
+				<Screen xsi:type="SettingsScreenType">
+					<Id>link</Id>
+					<DataCommand>
+						<Name>GetLinkSettings</Name>
+						<Type>PROTOCOL</Type>
+					</DataCommand>
+					<RequiresRefresh>true</RequiresRefresh>
+					<Item>
+						<HeaderTxt>Plex Account</HeaderTxt>
+					</Item>
+					<Item>
+						<Label>Status</Label>
+						<Text propertyName="status"/>
+					</Item>
+					<Item>
+						<Button>
+							<Name>Get Link Code</Name>
+							<Command>
+								<Name>StartLink</Name>
+								<Type>PROTOCOL</Type>
+							</Command>
+						</Button>
+					</Item>
+				</Screen>
+				<Screen xsi:type="SettingsScreenType">
+					<Id>linked</Id>
+					<DataCommand>
+						<Name>GetLinkSettings</Name>
+						<Type>PROTOCOL</Type>
+					</DataCommand>
+					<RequiresRefresh>true</RequiresRefresh>
+					<Item>
+						<HeaderTxt>Plex Account</HeaderTxt>
+					</Item>
+					<Item>
+						<Label>Status</Label>
+						<Text propertyName="status"/>
+					</Item>
+					<Item>
+						<Button>
+							<Name>Choose Music Library</Name>
+							<Command>
+								<Name>ChooseLibrary</Name>
+								<Type>PROTOCOL</Type>
+							</Command>
+						</Button>
+					</Item>
+					<Item>
+						<Button>
+							<Name>Playback Quality</Name>
+							<Command>
+								<Name>ChoosePlayback</Name>
+								<Type>PROTOCOL</Type>
+							</Command>
+						</Button>
+					</Item>
+					<Item>
+						<Button>
+							<Name>Unlink Account</Name>
+							<Command>
+								<Name>Unlink</Name>
+								<Type>PROTOCOL</Type>
+							</Command>
+						</Button>
+					</Item>
+				</Screen>
+				<Screen xsi:type="ListScreenType">
+					<Id>libraries</Id>
+					<DataCommand>
+						<Name>Browse</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param><Name>screenId</Name><Type>SYSTEM</Type><Value>screenId</Value></Param>
+							<Param><Name>id</Name><Type>FIRST_SELECTED</Type><Value>id</Value></Param>
+							<Param><Name>itemType</Name><Type>FIRST_SELECTED</Type><Value>itemType</Value></Param>
+							<Param><Name>nav</Name><Type>FIRST_SELECTED</Type><Value>nav</Value></Param>
+						</Params>
+					</DataCommand>
+					<RequiresRefresh>true</RequiresRefresh>
+					<PaginationStyle>NONE</PaginationStyle>
+					<List>
+						<ItemDefaultActionProperty>default_action</ItemDefaultActionProperty>
+						<TitleProperty>title</TitleProperty>
+						<SubTitleProperty>subtitle</SubTitleProperty>
+						<IsHeader>
+							<Property>isHeader</Property>
+							<ValidValues><Value>true</Value></ValidValues>
+						</IsHeader>
+					</List>
+				</Screen>
+				<Screen xsi:type="ListScreenType">
+					<Id>playback</Id>
+					<DataCommand>
+						<Name>Browse</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param><Name>screenId</Name><Type>SYSTEM</Type><Value>screenId</Value></Param>
+							<Param><Name>id</Name><Type>FIRST_SELECTED</Type><Value>id</Value></Param>
+							<Param><Name>itemType</Name><Type>FIRST_SELECTED</Type><Value>itemType</Value></Param>
+							<Param><Name>nav</Name><Type>FIRST_SELECTED</Type><Value>nav</Value></Param>
+						</Params>
+					</DataCommand>
+					<RequiresRefresh>true</RequiresRefresh>
+					<PaginationStyle>NONE</PaginationStyle>
+					<List>
+						<ItemDefaultActionProperty>default_action</ItemDefaultActionProperty>
+						<TitleProperty>title</TitleProperty>
+						<SubTitleProperty>subtitle</SubTitleProperty>
+						<IsHeader>
+							<Property>isHeader</Property>
+							<ValidValues><Value>true</Value></ValidValues>
+						</IsHeader>
+					</List>
+				</Screen>
+				<!-- Search results: every native search filter tab points
+				     here; the Browse command arrives with the query in
+				     search and the tab's filter id in search_filter. -->
+				<Screen xsi:type="ListScreenType">
+					<Id>searchlist</Id>
+					<DataCommand>
+						<Name>Browse</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param><Name>screenId</Name><Type>SYSTEM</Type><Value>screenId</Value></Param>
+							<Param><Name>id</Name><Type>FIRST_SELECTED</Type><Value>id</Value></Param>
+							<Param><Name>itemType</Name><Type>FIRST_SELECTED</Type><Value>itemType</Value></Param>
+							<Param><Name>nav</Name><Type>FIRST_SELECTED</Type><Value>nav</Value></Param>
+							<Param><Name>search</Name><Type>SEARCH</Type></Param>
+							<Param><Name>search_filter</Name><Type>SEARCH_FILTER</Type></Param>
+							<Param><Name>start</Name><Type>DATA_OFFSET</Type></Param>
+							<Param><Name>count</Name><Type>DATA_COUNT</Type></Param>
+						</Params>
+					</DataCommand>
+					<RequiresRefresh>true</RequiresRefresh>
+					<PaginationStyle>OFFSET</PaginationStyle>
+					<List>
+						<ItemDefaultActionProperty>default_action</ItemDefaultActionProperty>
+						<ItemActionIdsProperty>actions_list</ItemActionIdsProperty>
+						<TitleProperty>title</TitleProperty>
+						<SubTitleProperty>subtitle</SubTitleProperty>
+						<ImageProperty>image_list</ImageProperty>
+						<LengthProperty>duration</LengthProperty>
+						<IsLink>
+							<Property>isLink</Property>
+							<ValidValues><Value>true</Value></ValidValues>
+						</IsLink>
+						<IsHeader>
+							<Property>isHeader</Property>
+							<ValidValues><Value>true</Value></ValidValues>
+						</IsHeader>
+					</List>
+				</Screen>
+			</Screens>
+			<DriverNotifications>
+				<Notification>
+					<Id>c4plex</Id>
+				</Notification>
+				<Notification>
+					<Id>PlexLink</Id>
+					<CancelButton>
+						<Name>Close</Name>
+						<Command>
+							<Name>DismissLink</Name>
+							<Type>PROTOCOL</Type>
+						</Command>
+					</CancelButton>
+				</Notification>
+				<Notification>
+					<Id>LinkDone</Id>
+					<CancelButton>
+						<Name>Close</Name>
+						<Command>
+							<Name>CancelAuthRequired</Name>
+							<Type>PROTOCOL</Type>
+						</Command>
+					</CancelButton>
+					<Buttons>
+						<Button>
+							<Name>OK</Name>
+							<Command>
+								<Name>LinkDone</Name>
+								<Type>PROTOCOL</Type>
+							</Command>
+						</Button>
+					</Buttons>
+				</Notification>
+				<Notification>
+					<Id>AuthRequired</Id>
+					<CancelButton>
+						<Name>Not Now</Name>
+						<Command>
+							<Name>CancelAuthRequired</Name>
+							<Type>PROTOCOL</Type>
+						</Command>
+					</CancelButton>
+					<Buttons>
+						<Button>
+							<Name>Go To Settings</Name>
+							<Command>
+								<Name>ConfirmAuthRequired</Name>
+								<Type>PROTOCOL</Type>
+							</Command>
+						</Button>
+					</Buttons>
+				</Notification>
+			</DriverNotifications>
+			<NowPlaying>
+				<ActionIds>Shuffle Repeat</ActionIds>
+				<List>
+					<TitleProperty>title</TitleProperty>
+					<SubTitleProperty>subtitle</SubTitleProperty>
+					<ImageProperty>image_list</ImageProperty>
+					<LengthProperty>duration</LengthProperty>
+					<IsHeader>
+						<Property>isHeader</Property>
+						<ValidValues><Value>true</Value></ValidValues>
+					</IsHeader>
+				</List>
+			</NowPlaying>
+			<Actions>
+				<Action>
+					<Id>SelectItem</Id>
+					<Name>Select</Name>
+					<Command>
+						<Name>SelectItem</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param><Name>screenId</Name><Type>SYSTEM</Type><Value>screenId</Value></Param>
+							<Param><Name>tabId</Name><Type>SYSTEM</Type><Value>tabId</Value></Param>
+							<Param><Name>screenDepth</Name><Type>SYSTEM</Type><Value>screenDepth</Value></Param>
+							<Param><Name>id</Name><Type>FIRST_SELECTED</Type><Value>id</Value></Param>
+							<Param><Name>itemType</Name><Type>FIRST_SELECTED</Type><Value>itemType</Value></Param>
+							<Param><Name>nav</Name><Type>FIRST_SELECTED</Type><Value>nav</Value></Param>
+						</Params>
+					</Command>
+				</Action>
+				<Action>
+					<Id>PlayNow</Id>
+					<Name>Play Now</Name>
+					<Command>
+						<Name>PlayItem</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param><Name>id</Name><Type>FIRST_SELECTED</Type><Value>id</Value></Param>
+							<Param><Name>itemType</Name><Type>FIRST_SELECTED</Type><Value>itemType</Value></Param>
+							<Param><Name>playType</Name><Type>DEFAULT</Type><Value>NOW</Value></Param>
+						</Params>
+					</Command>
+				</Action>
+				<Action>
+					<Id>AddToQueue</Id>
+					<Name>Add To Queue</Name>
+					<Command>
+						<Name>PlayItem</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param><Name>id</Name><Type>FIRST_SELECTED</Type><Value>id</Value></Param>
+							<Param><Name>itemType</Name><Type>FIRST_SELECTED</Type><Value>itemType</Value></Param>
+							<Param><Name>playType</Name><Type>DEFAULT</Type><Value>ADD</Value></Param>
+						</Params>
+					</Command>
+				</Action>
+				<Action>
+					<Id>ShufflePlay</Id>
+					<Name>Shuffle Play</Name>
+					<Command>
+						<Name>PlayItem</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param><Name>id</Name><Type>FIRST_SELECTED</Type><Value>id</Value></Param>
+							<Param><Name>itemType</Name><Type>FIRST_SELECTED</Type><Value>itemType</Value></Param>
+							<Param><Name>playType</Name><Type>DEFAULT</Type><Value>SHUFFLE</Value></Param>
+						</Params>
+					</Command>
+				</Action>
+				<Action>
+					<Id>PlayNext</Id>
+					<Name>Play Next</Name>
+					<Command>
+						<Name>PlayItem</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param><Name>id</Name><Type>FIRST_SELECTED</Type><Value>id</Value></Param>
+							<Param><Name>itemType</Name><Type>FIRST_SELECTED</Type><Value>itemType</Value></Param>
+							<Param><Name>playType</Name><Type>DEFAULT</Type><Value>NEXT</Value></Param>
+						</Params>
+					</Command>
+				</Action>
+				<Action>
+					<Id>PlayMix</Id>
+					<Name>Play Mix</Name>
+					<Command>
+						<Name>PlayItem</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param><Name>id</Name><Type>FIRST_SELECTED</Type><Value>id</Value></Param>
+							<Param><Name>itemType</Name><Type>FIRST_SELECTED</Type><Value>itemType</Value></Param>
+							<Param><Name>playType</Name><Type>DEFAULT</Type><Value>MIX</Value></Param>
+						</Params>
+					</Command>
+				</Action>
+				<Action>
+					<Id>FavoriteToRoom</Id>
+					<Name>Add To Favorites</Name>
+					<Command>
+						<Name>Favorite</Name>
+						<Type>PROTOCOL</Type>
+						<Params>
+							<Param><Name>id</Name><Type>FIRST_SELECTED</Type><Value>id</Value></Param>
+							<Param><Name>itemType</Name><Type>FIRST_SELECTED</Type><Value>itemType</Value></Param>
+							<Param><Name>title</Name><Type>FIRST_SELECTED</Type><Value>title</Value></Param>
+							<Param><Name>fav_art</Name><Type>FIRST_SELECTED</Type><Value>fav_art</Value></Param>
+						</Params>
+					</Command>
+				</Action>
+				<Action>
+					<Id>Shuffle</Id>
+					<Name>Turn Shuffle On</Name>
+					<IconId>np_shuffle</IconId>
+					<Command>
+						<Name>ToggleShuffle</Name>
+						<Type>PROTOCOL</Type>
+					</Command>
+					<Filters>
+						<Filter>
+							<Type>Change</Type>
+							<Property>shufflemode</Property>
+							<Name>Turn Shuffle Off</Name>
+							<IconId>np_shuffle_a</IconId>
+							<ValidValues><Value>true</Value></ValidValues>
+						</Filter>
+					</Filters>
+				</Action>
+				<Action>
+					<Id>Repeat</Id>
+					<Name>Turn Repeat On</Name>
+					<IconId>np_repeat</IconId>
+					<Command>
+						<Name>ToggleRepeat</Name>
+						<Type>PROTOCOL</Type>
+					</Command>
+					<Filters>
+						<Filter>
+							<Type>Change</Type>
+							<Property>repeatmode</Property>
+							<Name>Turn Repeat Off</Name>
+							<IconId>np_repeat_a</IconId>
+							<ValidValues><Value>true</Value></ValidValues>
+						</Filter>
+					</Filters>
+				</Action>
+			</Actions>
+			<Dashboard>
+				<!-- PLAY/PAUSE/STOP are ROOM-typed: the room routes them to
+				     the Digital Audio engine, which pauses/resumes natively.
+				     The driver must not re-send them to the room (that loops
+				     and restarts Director). Skips are PROTOCOL: track advance
+				     is this driver feeding the next URL. -->
+				<Transport>
+					<Id>Play</Id>
+					<ButtonType>PLAY</ButtonType>
+					<ReleaseCommand><Name>PLAY</Name><Type>ROOM</Type></ReleaseCommand>
+				</Transport>
+				<Transport>
+					<Id>Pause</Id>
+					<ButtonType>PAUSE</ButtonType>
+					<ReleaseCommand><Name>PAUSE</Name><Type>ROOM</Type></ReleaseCommand>
+				</Transport>
+				<Transport>
+					<Id>Stop</Id>
+					<ButtonType>STOP</ButtonType>
+					<ReleaseCommand><Name>STOP</Name><Type>ROOM</Type></ReleaseCommand>
+				</Transport>
+				<Transport>
+					<Id>SkipRev</Id>
+					<ButtonType>SKIP_REV</ButtonType>
+					<ReleaseCommand><Name>SKIP_REV</Name><Type>PROTOCOL</Type></ReleaseCommand>
+				</Transport>
+				<Transport>
+					<Id>SkipFwd</Id>
+					<ButtonType>SKIP_FWD</ButtonType>
+					<ReleaseCommand><Name>SKIP_FWD</Name><Type>PROTOCOL</Type></ReleaseCommand>
+				</Transport>
+			</Dashboard>
+			<!-- recall of a pinned favorite: Navigator hands back the favoriteId
+			     string we stored in the FavoriteResponse Context; PlayFavorite
+			     decodes it and plays into the tapping room. ROOMID arrives
+			     ambiently in tParams, so it is not declared here. -->
+			<FavoriteCommand>
+				<Name>PlayFavorite</Name>
+				<Type>PROTOCOL</Type>
+				<Params>
+					<Param>
+						<Name>favoriteId</Name>
+						<Type>FIRST_SELECTED</Type>
+						<Value>favoriteId</Value>
+					</Param>
+				</Params>
+			</FavoriteCommand>
+		</UI>
+	</capabilities>
+	<proxies>
+		<proxy proxybindingid="5001" primary="True" name="Plex Music (c4plex)" image_source="c4z" small_image="icons/device_sm.png" large_image="icons/device_lg.png">media_service</proxy>
+	</proxies>
+	<connections>
+		<connection>
+			<id>5001</id>
+			<facing>6</facing>
+			<connectionname>Media Service</connectionname>
+			<type>2</type>
+			<consumer>False</consumer>
+			<audiosource>False</audiosource>
+			<videosource>False</videosource>
+			<linelevel>False</linelevel>
+			<classes>
+				<class><classname>MediaService</classname></class>
+			</classes>
+			<hidden>False</hidden>
+		</connection>
+		<!-- the whole audio story for a native streaming service: an autobound
+		     DIGITAL_AUDIO_CLIENT input and DIGITAL_AUDIO_SERVER output. Director
+		     wires the stream paths itself; there is no analog/room connection. -->
+		<connection>
+			<id>3001</id>
+			<facing>6</facing>
+			<connectionname>Digital Audio Client</connectionname>
+			<type>6</type>
+			<consumer>True</consumer>
+			<linelevel>True</linelevel>
+			<classes>
+				<class><autobind>True</autobind><classname>DIGITAL_AUDIO_CLIENT</classname></class>
+			</classes>
+			<hidden>False</hidden>
+		</connection>
+		<connection>
+			<id>4100</id>
+			<facing>6</facing>
+			<connectionname>Digital Audio</connectionname>
+			<type>6</type>
+			<consumer>False</consumer>
+			<audiosource>True</audiosource>
+			<linelevel>True</linelevel>
+			<classes>
+				<class><autobind>True</autobind><classname>DIGITAL_AUDIO_SERVER</classname></class>
+			</classes>
+			<hidden>False</hidden>
+		</connection>
+	</connections>
+</devicedata>
